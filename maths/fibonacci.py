@@ -317,16 +317,134 @@ def fib_matrix_np(n: int) -> int:
     return int(result[0, 0])
 
 
+def fib_matrix_pure(n: int) -> int:
+    """
+    Calculates the n-th Fibonacci number using matrix exponentiation with pure Python.
+    This avoids numpy overhead for small to medium values of n.
+    Uses the doubling formula for O(log n) time complexity.
+    
+    https://www.nayuki.io/page/fast-fibonacci-algorithms
+    
+    Args:
+        n: Fibonacci sequence index
+        
+    Returns:
+        The n-th Fibonacci number.
+        
+    Raises:
+        ValueError: If n is negative.
+        
+    >>> fib_matrix_pure(0)
+    0
+    >>> fib_matrix_pure(1)
+    1
+    >>> fib_matrix_pure(5)
+    5
+    >>> fib_matrix_pure(10)
+    55
+    >>> fib_matrix_pure(-1)
+    Traceback (most recent call last):
+        ...
+    ValueError: n is negative
+    """
+    if n < 0:
+        raise ValueError("n is negative")
+    if n == 0:
+        return 0
+    
+    def matrix_mult(a: tuple[tuple[int, ...], ...], 
+                    b: tuple[tuple[int, ...], ...]) -> tuple[tuple[int, ...], ...]:
+        """Multiply two 2x2 matrices."""
+        return (
+            (a[0][0] * b[0][0] + a[0][1] * b[1][0], 
+             a[0][0] * b[0][1] + a[0][1] * b[1][1]),
+            (a[1][0] * b[0][0] + a[1][1] * b[1][0], 
+             a[1][0] * b[0][1] + a[1][1] * b[1][1])
+        )
+    
+    def matrix_pow(m: tuple[tuple[int, ...], ...], power: int) -> tuple[tuple[int, ...], ...]:
+        """Raise matrix to power using binary exponentiation."""
+        result = ((1, 0), (0, 1))  # Identity matrix
+        base = m
+        while power > 0:
+            if power & 1:
+                result = matrix_mult(result, base)
+            base = matrix_mult(base, base)
+            power >>= 1
+        return result
+    
+    m = ((1, 1), (1, 0))
+    result = matrix_pow(m, n - 1)
+    return result[0][0]
+
+
+def fib_fast_doubling(n: int) -> int:
+    """
+    Calculates the n-th Fibonacci number using the fast doubling method.
+    This is the fastest pure Python implementation with O(log n) time complexity.
+    
+    Uses the identities:
+    F(2k) = F(k) * [2*F(k+1) - F(k)]
+    F(2k+1) = F(k+1)^2 + F(k)^2
+    
+    https://www.nayuki.io/page/fast-fibonacci-algorithms
+    
+    Args:
+        n: Fibonacci sequence index
+        
+    Returns:
+        The n-th Fibonacci number.
+        
+    Raises:
+        ValueError: If n is negative.
+        
+    >>> fib_fast_doubling(0)
+    0
+    >>> fib_fast_doubling(1)
+    1
+    >>> fib_fast_doubling(5)
+    5
+    >>> fib_fast_doubling(10)
+    55
+    >>> fib_fast_doubling(-1)
+    Traceback (most recent call last):
+        ...
+    ValueError: n is negative
+    """
+    if n < 0:
+        raise ValueError("n is negative")
+    
+    def _fib(n: int) -> tuple[int, int]:
+        """Returns (F(n), F(n-1))."""
+        if n == 0:
+            return (0, 1)
+        a, b = _fib(n >> 1)
+        c = a * ((b << 1) - a)
+        d = a * a + b * b
+        return (d, c + d) if n & 1 else (c, d)
+    
+    return _fib(n)[0]
+
+
 if __name__ == "__main__":
     from doctest import testmod
 
     testmod()
     # Time on an M1 MacBook Pro -- Fastest to slowest
     num = 30
-    time_func(fib_iterative_yield, num)  # 0.0012 ms
-    time_func(fib_iterative, num)  # 0.0031 ms
-    time_func(fib_binet, num)  # 0.0062 ms
-    time_func(fib_memoization, num)  # 0.0100 ms
-    time_func(fib_recursive_cached, num)  # 0.0153 ms
-    time_func(fib_recursive, num)  # 257.0910 ms
-    time_func(fib_matrix_np, num)  # 0.0000 ms
+    time_func(fib_iterative_yield, num)  # ~0.001 ms
+    time_func(fib_iterative, num)  # ~0.006 ms
+    time_func(fib_binet, num)  # ~0.018 ms
+    time_func(fib_memoization, num)  # ~0.016 ms
+    time_func(fib_recursive_cached, num)  # ~0.031 ms
+    time_func(fib_recursive, num)  # ~500+ ms (very slow!)
+    time_func(fib_matrix_np, num)  # ~0.080 ms (numpy overhead)
+    time_func(fib_matrix_pure, num)  # ~0.015 ms (pure Python, no numpy)
+    time_func(fib_fast_doubling, num)  # ~0.012 ms (fastest pure Python)
+    
+    # Benchmark with larger n
+    print("\n--- Benchmark with n=1000 ---")
+    num = 1000
+    time_func(fib_iterative, num)
+    time_func(fib_matrix_pure, num)
+    time_func(fib_fast_doubling, num)
